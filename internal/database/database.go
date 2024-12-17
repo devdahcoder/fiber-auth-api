@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fiber-auth-api/internal/logger"
-	"fmt"
 	_ "github.com/lib/pq"
 	"os"
 	"sync"
@@ -41,15 +40,17 @@ func NewPsqlDsnConfig() PsqlDsnConfig {
 }
 
 func NewPsqlDatabase(config PsqlDsnConfig) (*PsqlDatabase, error) {
-	dsn := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		config.Host,
-		config.Port,
-		config.User,
-		config.Password,
-		config.DBName,
-		config.SSLMode,
-	)
+	//dsn := fmt.Sprintf(
+	//	"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+	//	config.Host,
+	//	config.Port,
+	//	config.User,
+	//	config.Password,
+	//	config.DBName,
+	//	config.SSLMode,
+	//)
+
+	dsn := "postgres://greenlight:pa55word@localhost/greenlight?sslmode=disable"
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {

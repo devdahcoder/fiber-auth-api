@@ -37,9 +37,9 @@ func InitializeLogger(config ...SlogLogConfig) {
 		})
 	}
 
-	globalLogger := slog.New(logHandler)
+	globalSlogLogger = slog.New(logHandler)
 
-	slog.SetDefault(globalLogger)
+	slog.SetDefault(globalSlogLogger)
 
 }
 

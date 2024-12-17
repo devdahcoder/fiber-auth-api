@@ -40,11 +40,3 @@ func main() {
 	logger.Error(fmt.Sprintf("Error closing database: %v", app.fiberApp.Listen(":3000")))
 
 }
-
-//dbConfig := dbConfig{
-//	port: 8080,
-//	env:  "development",
-//	db: struct{ dsn string }{
-//		dsn: "user:password@tcp(localhost:3306)/your_database",
-//	},
-//}

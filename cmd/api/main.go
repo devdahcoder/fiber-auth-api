@@ -1,47 +1,50 @@
 package main
 
 import (
+	"database/sql"
 	"fiber-auth-api/internal/database"
+	"fiber-auth-api/internal/logger"
+	"fmt"
 	"github.com/gofiber/fiber/v3"
 	"log/slog"
 )
 
-type dbConfig struct {
-	port int
-	env  string
-	db   struct {
-		dsn string
-	}
-}
-
-type application struct {
+type Application struct {
 	fiberApp *fiber.App
 	log      *slog.Logger
-	dbConfig *dbConfig
+	db       *sql.DB
 }
 
 func main() {
 
-	db := database.InitializeDb()
+	logger.InitializeLogger(logger.SlogLogConfig{
+		Level: slog.LevelDebug,
+		JSON:  false,
+	})
 
-	defer db.Close()
+	log := logger.GetLogger()
 
-	//dbConfig := dbConfig{
-	//	port: 8080,
-	//	env:  "development",
-	//	db: struct{ dsn string }{
-	//		dsn: "user:password@tcp(localhost:3306)/your_database",
-	//	},
-	//}
+	db := database.GetPsqlDatabase()
+	defer func() {
+		if err := db.ClosePsqlDb(); err != nil {
+			log.Error(fmt.Sprintf("Error closing database: %v", err))
+		}
+	}()
 
-	app := application{
+	app := Application{
 		fiberApp: route(),
-		//dbConfig: &dbConfig,
+		log:      log,
+		db:       db.GetPsqlDB(),
 	}
 
-	err = app.fiberApp.Listen(":3000")
+	logger.Error(fmt.Sprintf("Error closing database: %v", app.fiberApp.Listen(":3000")))
 
-	if err != nil {
-		return
-	}
 }
+
+//dbConfig := dbConfig{
+//	port: 8080,
+//	env:  "development",
+//	db: struct{ dsn string }{
+//		dsn: "user:password@tcp(localhost:3306)/your_database",
+//	},
+//}

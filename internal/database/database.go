@@ -3,32 +3,44 @@ package database
 import (
 	"context"
 	"database/sql"
+	"fiber-auth-api/internal/logger"
 	"fmt"
 	_ "github.com/lib/pq"
-	"log"
+	"os"
 	"sync"
 	"time"
 )
 
-type Database struct {
+type PsqlDatabase struct {
 	psqlDb *sql.DB
 }
 
 var (
 	once sync.Once
-	db   *Database
+	db   *PsqlDatabase
 )
 
-type DbConfig struct {
+type PsqlDsnConfig struct {
 	Host     string
-	Port     int
+	Port     string
 	User     string
 	Password string
 	DBName   string
 	SSLMode  string
 }
 
-func NewDatabase(config DbConfig) (*Database, error) {
+func NewPsqlDsnConfig() PsqlDsnConfig {
+	return PsqlDsnConfig{
+		Host:     os.Getenv("DB_HOST"),
+		Port:     os.Getenv("DB_PORT"),
+		User:     os.Getenv("DB_USER"),
+		Password: os.Getenv("DB_PASSWORD"),
+		DBName:   os.Getenv("DB_NAME"),
+		SSLMode:  os.Getenv("DB_SSLMODE"),
+	}
+}
+
+func NewPsqlDatabase(config PsqlDsnConfig) (*PsqlDatabase, error) {
 	dsn := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		config.Host,
@@ -52,32 +64,29 @@ func NewDatabase(config DbConfig) (*Database, error) {
 		return nil, err
 	}
 
-	return &Database{psqlDb: db}, nil
+	return &PsqlDatabase{psqlDb: db}, nil
 }
 
-func InitializeDb() *Database {
+func GetPsqlDatabase() *PsqlDatabase {
 
 	once.Do(func() {
-		config := DbConfig{
-			Host:     "localhost",
-			Port:     5432,
-			User:     "youruser",
-			Password: "yourpassword",
-			DBName:   "yourdbname",
-			SSLMode:  "disable",
-		}
+		dsnConfig := NewPsqlDsnConfig()
 
 		var err error
-		db, err = NewDatabase(config)
+		db, err = NewPsqlDatabase(dsnConfig)
 		if err != nil {
-			log.Fatalf("Could not connect to database: %v", err)
+			logger.Error("Could not connect to database: %v", err)
 		}
 	})
 
 	return db
 }
 
-func (db *Database) Close() error {
+func (db *PsqlDatabase) GetPsqlDB() *sql.DB {
+	return db.psqlDb
+}
+
+func (db *PsqlDatabase) ClosePsqlDb() error {
 	if db.psqlDb != nil {
 		return db.psqlDb.Close()
 	}

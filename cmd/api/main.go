@@ -1,27 +1,23 @@
 package main
 
 import (
-	"database/sql"
 	"fiber-auth-api/internal/database"
 	"fiber-auth-api/internal/logger"
+	"fiber-auth-api/internal/models"
+	"fiber-auth-api/internal/route"
 	"fmt"
 	"github.com/gofiber/fiber/v3"
 	"log/slog"
 )
 
-type Application struct {
-	fiberApp *fiber.App
-	log      *slog.Logger
-	db       *sql.DB
-}
-
 func main() {
+
+	fiberApp := fiber.New(fiber.Config{})
 
 	logger.InitializeLogger(logger.SlogLogConfig{
 		Level: slog.LevelDebug,
 		JSON:  false,
 	})
-
 	log := logger.GetLogger()
 
 	db := database.GetPsqlDatabase()
@@ -31,12 +27,14 @@ func main() {
 		}
 	}()
 
-	app := Application{
-		fiberApp: route(),
-		log:      log,
-		db:       db.GetPsqlDB(),
+	app := models.Application{
+		FiberApp:   fiberApp,
+		SlogLogger: log,
+		PsqlDb:     db.GetPsqlDB(),
 	}
 
-	logger.Error(fmt.Sprintf("Error closing database: %v", app.fiberApp.Listen(":3000")))
+	route.SetupRoutes(app)
+
+	logger.Error(fmt.Sprintf("Error starting up application: %v", fiberApp.Listen(":3000")))
 
 }

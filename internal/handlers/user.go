@@ -1,11 +1,39 @@
 package handlers
 
-import "github.com/gofiber/fiber/v3"
+import (
+	"fiber-auth-api/internal/models"
+	"github.com/gofiber/fiber/v3"
+)
 
-func (app *application) signInHandler(c *fiber.Ctx) error {
-
+type UserHandler struct {
+	app     models.Application
+	dbModel *models.DbModel
 }
 
-func (app *application) signUpHandler(c *fiber.Ctx) error {
-
+func NewUserHandler(app models.Application, dbModel *models.DbModel) *UserHandler {
+	return &UserHandler{app: app, dbModel: dbModel}
 }
+
+func (userHandler UserHandler) SignInHandler(c fiber.Ctx) error {
+	return c.SendString("Hello, World!")
+}
+
+func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
+	return nil
+}
+
+func (userHandler UserHandler) SignOutHandler(c fiber.Ctx) error { return nil }
+
+func (userHandler UserHandler) ResetPasswordHandler(c fiber.Ctx) error { return nil }
+
+func (userHandler UserHandler) GetAllUsersHandler(c fiber.Ctx) error {
+	return c.SendString("Hello, World!")
+}
+
+func (userHandler UserHandler) GetUserByIdHandler(c fiber.Ctx) error {
+	return c.SendString("Hello, World!")
+}
+
+func (userHandler UserHandler) GetUserByUsernameHandler(c fiber.Ctx) error { return nil }
+
+func (UserHandler UserHandler) GetUserByEmailHandler(c fiber.Ctx) error { return nil }

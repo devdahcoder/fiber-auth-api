@@ -50,7 +50,7 @@ func NewPsqlDatabase(config PsqlDsnConfig) (*PsqlDatabase, error) {
 	//	config.SSLMode,
 	//)
 
-	dsn := "postgres://greenlight:pa55word@localhost/greenlight?sslmode=disable"
+	dsn := "postgres://postgres:2210@localhost/greenlight?sslmode=disable"
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {

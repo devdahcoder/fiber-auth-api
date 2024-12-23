@@ -23,9 +23,21 @@ func (app *Application) NewApplication(fiber *fiber.App, slogLogger *slog.Logger
 }
 
 type DbModel struct {
-	userDbModel *repositories.UserRepository
+	UserDbModel *repositories.UserRepository
 }
 
-func NewDbModel(user *repositories.UserRepository) *DbModel {
-	return &DbModel{userDbModel: user}
+func NewDbModel(userRepository *repositories.UserRepository) *DbModel {
+	return &DbModel{UserDbModel: userRepository}
+}
+
+func (dbModel DbModel) GetUserRepository() *repositories.UserRepository {
+	return dbModel.UserDbModel
+}
+
+type UserAuthenticationModel struct {
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+	Username  string `json:"username"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 }

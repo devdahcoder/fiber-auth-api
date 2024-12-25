@@ -3,7 +3,6 @@ package validation
 import (
 	"encoding/json"
 	"errors"
-	"fiber-auth-api/internal/models"
 	"fmt"
 	"github.com/gofiber/fiber/v3"
 )
@@ -49,28 +48,34 @@ func IsInvalidFieldError(err error) (*InvalidFieldError, bool) {
 	return invalidFieldErr, ok
 }
 
-func InvalidFieldValidation(c fiber.Ctx, expectedFields map[string]bool) error {
+func InvalidFieldValidation(c fiber.Ctx, expectedFields map[string]bool, dataModel interface{}) error {
+    body := c.BodyRaw()
+    var rawFields map[string]interface{}
 
-	body := c.BodyRaw()
-	var rawFields map[string]interface{}
+    if err := json.Unmarshal(body, &rawFields); err != nil {
+        return err
+    }
 
-	if err := json.Unmarshal(body, &rawFields); err != nil {
-		return err
-	}
+    unknownFields := findUnknownFields(rawFields, expectedFields)
+    if len(unknownFields) > 0 {
+        return NewInvalidFieldError(unknownFields)
+    }
 
-	var unknownFields []string
-	for field := range rawFields {
-		if _, exists := expectedFields[field]; !exists {
-			unknownFields = append(unknownFields, field)
-		}
-	}
+    if err := json.Unmarshal(body, &dataModel); err != nil {
+        return err
+    }
 
-	if len(unknownFields) > 0 {
-		return NewInvalidFieldError(unknownFields)
-	}
+    return nil
+}
 
-	return json.Unmarshal(body, &models.UserAuthenticationModel{})
-
+func findUnknownFields(rawFields map[string]interface{}, expectedFields map[string]bool) []string {
+    var unknownFields []string
+    for field := range rawFields {
+        if _, exists := expectedFields[field]; !exists {
+            unknownFields = append(unknownFields, field)
+        }
+    }
+    return unknownFields
 }
 
 func (e *InvalidFieldError) Error() string {

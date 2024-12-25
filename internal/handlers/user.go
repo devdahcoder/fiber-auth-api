@@ -27,8 +27,9 @@ func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 		"username": true,
 		"first_name": true,
 		"last_name": true,
-	}); err != nil {
+	}, user); err != nil {
 		if invalidFieldErr, ok := validation.IsInvalidFieldError(err); ok {
+			userHandler.app.SlogLogger.Error("Invalid field error", "error", invalidFieldErr)
 			return userHandler.BadRequestFieldResponseError(c, fiber.Map{
 				"email":    "user@example.com",
 				"password": "yourPassword123!",
@@ -40,6 +41,7 @@ func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 			})
 		}
 
+		userHandler.app.SlogLogger.Error("Invalid json body", "error", err)
 		return userHandler.BadRequestResponseError(c, fiber.Map{
 			"email":    "user@example.com",
 			"password": "yourPassword123!",
@@ -47,11 +49,6 @@ func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 			"first_name": "John",
 			"last_name": "Doe",
 		})
-	}
-
-	if err := c.Bind().Body(user); err != nil {
-		userHandler.app.SlogLogger.Error("Failed to bind request body", "error", err)
-		return userHandler.InternalServerErrorResponseError(c)
 	}
 
 	// v := validation.NewErrorValidator()
@@ -63,6 +60,17 @@ func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 	// 		"password": "SecurePass123!",
 	// 	}, v.ValidationErrorField)
 	// }
+
+	ok, err := userHandler.dbModel.UserDbModel.IsUserExists(user.Email, user.Username)
+
+	if err != nil {
+		userHandler.app.SlogLogger.Error("Failed to check if user exists", "error", err)
+		return userHandler.InternalServerErrorResponseError(c)
+	}
+
+	if ok {
+		return userHandler.ConflictResponseError(c, "User already exists")
+	}
 
 	hashedPassword, err := helper.HashPassword(user.Password)
 	if err != nil {
@@ -86,7 +94,7 @@ func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "success",
+		"status":  "successful",
         "message": "User created successfully",
         "data":    userResponse.Email,
 	})
@@ -100,7 +108,7 @@ func (userHandler UserHandler) SignInHandler(c fiber.Ctx) error {
 	if err := validation.InvalidFieldValidation(c, map[string]bool{
 		"email":    true,
 		"password": true,
-	}); err != nil {
+	}, user); err != nil {
 		if invalidFieldErr, ok := validation.IsInvalidFieldError(err); ok {
 			return userHandler.BadRequestFieldResponseError(c, fiber.Map{
 				"email":    "user@example.com",

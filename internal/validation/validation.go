@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/gofiber/fiber/v3"
 )
 
+// Json field validation
 type ValidationErrorField struct {
 	Field   string `json:"field"`
 	Message string `json:"message"`
@@ -34,6 +36,7 @@ func (validatorError *ValidationError) IsValid() bool {
 	return len(validatorError.ValidationErrorField) == 0
 }
 
+// Json value validation
 type InvalidFieldError struct {
 	Fields []string
 }
@@ -81,3 +84,4 @@ func findUnknownFields(rawFields map[string]interface{}, expectedFields map[stri
 func (e *InvalidFieldError) Error() string {
 	return fmt.Sprintf("unknown field(s): %v", e.Fields)
 }
+

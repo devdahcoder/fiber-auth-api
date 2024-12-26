@@ -7,7 +7,7 @@ import (
 )
 
 func SetupRoutes(app models.Application) {
-	userRepository := repositories.NewUserRepository(app.PsqlDb)
+	userRepository := repositories.NewUserRepository(app.PsqlDb, app.SlogLogger)
 	dbModel := models.NewDbModel(userRepository)
 	userHandler := handlers.NewUserHandler(app, dbModel)
 

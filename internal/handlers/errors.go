@@ -68,6 +68,6 @@ func (userHandler UserHandler) ValidationResponseError(c fiber.Ctx, structure ma
 }
 
 func (userHandler UserHandler) ConflictResponseError(c fiber.Ctx, message string) error {
-	err := fmt.Errorf(message)
+	err := fmt.Errorf("%s", message)
 	return userHandler.ErrorResponse(c, fiber.StatusConflict, err)
 }

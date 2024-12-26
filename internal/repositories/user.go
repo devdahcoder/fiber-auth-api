@@ -3,7 +3,10 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"fiber-auth-api/internal/types"
+	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 )
 
@@ -67,24 +70,27 @@ func (userRepo UserRepository) CreateUser(user *UserCreateDbModel) error {
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING user_id, created_at, updated_at`
 
-		err := userRepo.DB.QueryRowContext(
-			context.Background(),
-			query,
-			user.Username,
-			user.Email,
-			user.PasswordHash,
-			user.FirstName,
-			user.LastName,
-			user.IsActive,
-			user.IsEmailVerified,
-		).Scan(&user.UserId, &user.CreatedAt, &user.UpdatedAt)
+	err := userRepo.DB.QueryRowContext(
+		context.Background(),
+		query,
+		user.Username,
+		user.Email,
+		user.PasswordHash,
+		user.FirstName,
+		user.LastName,
+		user.IsActive,
+		user.IsEmailVerified,
+	).Scan(&user.UserId, &user.CreatedAt, &user.UpdatedAt)
 
-		if err != nil {
-			userRepo.log.Error("Something went wrong creating user", "error", err)
-			return err
+	if err != nil {
+		if isDuplicateKeyError(err) {
+			userRepo.log.Error("User already exists", "error", err)
+			return fmt.Errorf("user already exists: %w", types.ErrDuplicateUser)
 		}
-
-		return nil
+		userRepo.log.Error("Something went wrong creating user", "error", err)
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+	return nil
 }
 
 func (user UserRepository) AuthenticateUser(username string, password string) bool {
@@ -174,4 +180,8 @@ func (userRepo UserRepository) IsUserExists(email string, username string) (bool
 		return false, err
 	}
 	return userExists, nil
+}
+
+func isDuplicateKeyError(err error) bool {
+    return strings.Contains(err.Error(), "duplicate key value violates unique constraint")
 }

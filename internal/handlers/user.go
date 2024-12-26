@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"errors"
 	"fiber-auth-api/internal/helper"
 	"fiber-auth-api/internal/models"
 	"fiber-auth-api/internal/repositories"
+	"fiber-auth-api/internal/types"
 	"fiber-auth-api/internal/validation"
 
 	"github.com/gofiber/fiber/v3"
@@ -32,7 +34,6 @@ var (
 func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 	
 	user := new(repositories.UserCreateModel)
-
 	userHandler.ValidateSignUp(c, user)
 
 	hashedPassword, err := helper.HashPassword(user.Password)
@@ -53,6 +54,9 @@ func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 	err = userHandler.dbModel.UserDbModel.CreateUser(userResponse)
 
 	if err != nil {
+		if errors.Is(err, types.ErrDuplicateUser) {
+			return userHandler.ConflictResponseError(c, "User already exists")
+		}
 		return userHandler.InternalServerErrorResponseError(c)
 	}
 

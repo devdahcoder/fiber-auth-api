@@ -67,6 +67,14 @@ func (userHandler UserHandler) ValidationResponseError(c fiber.Ctx, structure ma
 	})
 }
 
+func (userHandler UserHandler) SuccessResponse(c fiber.Ctx, message string, data any) error {
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "successful",
+		"message": message,
+		"data":    data,
+	})
+}
+
 func (userHandler UserHandler) ConflictResponseError(c fiber.Ctx, message string) error {
 	err := fmt.Errorf("%s", message)
 	return userHandler.ErrorResponse(c, fiber.StatusConflict, err)

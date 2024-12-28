@@ -34,8 +34,35 @@ var (
 func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 	
 	user := new(repositories.UserCreateModel)
-	userHandler.ValidateSignUp(c, user)
+	if err := validation.InvalidFieldValidation(c, map[string]bool{
+		"email":    true,
+		"password": true,
+		"username": true,
+		"first_name": true,
+		"last_name": true,
+	}, user); err != nil {
+		if invalidFieldErr, ok := validation.IsInvalidFieldError(err); ok {
+			userHandler.app.SlogLogger.Error("Invalid field error", "error", invalidFieldErr)
+			return userHandler.BadRequestFieldResponseError(c, requestExample, fiber.Map{
+				"invalid_fields": invalidFieldErr.Fields,
+			})
+		}
 
+		userHandler.app.SlogLogger.Error("Invalid json body", "error", err)
+		return userHandler.BadRequestResponseError(c, requestExample)
+	}
+
+	v := validation.NewErrorValidator()
+	v.Check(user.Email != "", "email", "email must be provided")
+	v.Check(user.Password != "", "password", "password must be provided")
+	v.Check(user.Username != "", "username", "username must be provided")
+	v.Check(user.FirstName != "", "first_name", "first name must be provided")
+	v.Check(user.LastName != "", "last_name", "last name must be provided")
+	
+	if !v.IsValid() {
+		return userHandler.ValidationResponseError(c, requestExample, v.ValidationErrorField)
+	}
+	
 	hashedPassword, err := helper.HashPassword(user.Password)
 	if err != nil {
 		userHandler.app.SlogLogger.Error("Failed to hash password", "error", err)
@@ -60,11 +87,7 @@ func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 		return userHandler.InternalServerErrorResponseError(c)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"status":  "successful",
-        "message": "User created successfully",
-        "data":    userResponse.Email,
-	})
+	return userHandler.SuccessResponse(c, "User created successfully", user.Email)
 
 }
 
@@ -117,15 +140,14 @@ func (userHandler UserHandler) SignOutHandler(c fiber.Ctx) error { return nil }
 func (userHandler UserHandler) ResetPasswordHandler(c fiber.Ctx) error { return nil }
 
 func (userHandler UserHandler) GetAllUsersHandler(c fiber.Ctx) error {
-	users, err := userHandler.dbModel.UserDbModel.GetAllUsers()
+	users, metadata, err := userHandler.dbModel.UserDbModel.GetAllUsers()
 	if err != nil {
 		return userHandler.InternalServerErrorResponseError(c)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "successful",
-        "message": "All users fetched successfully",
-        "data":    users,
+	return userHandler.SuccessResponse(c, "All users fetched successfully", fiber.Map{
+		"users":    users,
+		"metadata": metadata,
 	})
 }
 

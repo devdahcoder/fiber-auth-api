@@ -19,7 +19,7 @@ type UserHandler struct {
 func NewUserHandler(app models.Application, dbModel *models.DbModel) *UserHandler {
 	return &UserHandler{app: app, dbModel: dbModel}
 }
-	
+
 var (
 	exampleEmail = "user@example.com"
 	requestExample = fiber.Map{
@@ -30,6 +30,10 @@ var (
 		"last_name": "Doe",
 	}
 )
+
+type queryParams struct {
+	value map[string]string
+}
 
 func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 	
@@ -140,6 +144,9 @@ func (userHandler UserHandler) SignOutHandler(c fiber.Ctx) error { return nil }
 func (userHandler UserHandler) ResetPasswordHandler(c fiber.Ctx) error { return nil }
 
 func (userHandler UserHandler) GetAllUsersHandler(c fiber.Ctx) error {
+
+	
+
 	users, metadata, err := userHandler.dbModel.UserDbModel.GetAllUsers()
 	if err != nil {
 		return userHandler.InternalServerErrorResponseError(c)
@@ -202,5 +209,6 @@ func (userHandler UserHandler) ValidateSignUp(c fiber.Ctx, user *repositories.Us
 	}
 
 	return nil
+	// limit, err := helper.GetQueryInt(q, "limit", 5)
 
 }

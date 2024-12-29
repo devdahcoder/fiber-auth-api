@@ -89,10 +89,10 @@ func NewMetadata(totalRecords int) *Metadata {
 	}
 }
 
-type UserListResponseModel struct {
-	users []*UserResponseModel
-	metadata Metadata
-}
+// type UserListResponseModel struct {
+// 	users []*UserResponseModel
+// 	metadata Metadata
+// }
 
 func (userRepo UserRepository) CreateUser(user *UserCreateDbModel) error {
 	query := `
@@ -125,7 +125,7 @@ func (userRepo UserRepository) CreateUser(user *UserCreateDbModel) error {
 
 	if err != nil {
 		if isDuplicateKeyError(err) {
-			userRepo.log.Error("User already exists", err)
+			userRepo.log.Error("User already exists", "error", err)
 			return types.ErrDuplicateUser
 		}
 		userRepo.log.Error("Something went wrong creating user", "error", err)

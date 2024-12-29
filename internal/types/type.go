@@ -9,3 +9,5 @@ type Metadata struct {
 	HasPrev      bool `json:"has_prev"`
 	TotalCurrentRecords int `json:"total_current_records"`
 }
+
+type QueryTypeValidationFunction func(string) bool

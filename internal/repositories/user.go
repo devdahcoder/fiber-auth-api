@@ -22,12 +22,17 @@ func NewUserRepository(db *sql.DB, log *slog.Logger) *UserRepository {
 	}
 }
 
-type UserCreateModel struct {
+type UserSignupModel struct {
 	Email     string `json:"email"`
 	Password  string `json:"password"`
 	Username  string `json:"username"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
+}
+
+type UserSigninModel struct {
+	Email	  string `json:"email"`
+	Password  string `json:"password"`
 }
 
 type UserCreateDbModel struct {
@@ -53,6 +58,13 @@ type UserResponseModel struct {
 	LastName       string `json:"last_name"`
 	IsActive        bool   `json:"is_active"`
 	IsEmailVerified bool   `json:"is_email_verified"`
+}
+
+type UserAuthenticateResponseModel struct {
+	UserId          string `json:"user_id"`
+	Email           string `json:"email"`
+	Username        string `json:"username"`
+	PasswordHash    string    `json:"password_hash"`
 }
 
 type Metadata struct {
@@ -134,8 +146,26 @@ func (userRepo UserRepository) CreateUser(user *UserCreateDbModel) error {
 	return nil
 }
 
-func (user UserRepository) AuthenticateUser(username string, password string) bool {
-	return true
+func (userRepo UserRepository) AuthenticateUser(email string) (*UserAuthenticateResponseModel, error) {
+	query := `SELECT user_id, email, username, password_hash FROM users WHERE email = $1`
+
+	var user UserAuthenticateResponseModel
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := userRepo.DB.QueryRowContext(ctx, query, email).Scan(
+		&user.UserId,
+		&user.Email,
+		&user.Username,
+		&user.PasswordHash,
+	)
+
+	if err != nil {
+		userRepo.log.Error("Failed to get user", "error", err)
+		return nil, types.ErrUserNotFound
+	}
+
+	return &user, nil
 }
 
 func (userRepo UserRepository) GetAllUsers() ([]*UserResponseModel, *Metadata, error) {
@@ -196,8 +226,10 @@ func (userRepo UserRepository) FindUserById(userId string) (*UserResponseModel, 
 	query := `SELECT user_id, email, first_name, last_name, username, is_email_verified, is_active FROM users WHERE user_id = $1`
 
 	var user UserResponseModel
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	err := userRepo.DB.QueryRow(query, userId).Scan(
+	err := userRepo.DB.QueryRowContext(ctx, query, userId).Scan(
 		&user.UserId,
 		&user.Email,
 		&user.FirstName,
@@ -216,19 +248,42 @@ func (userRepo UserRepository) FindUserById(userId string) (*UserResponseModel, 
 
 }
 
-func (user UserRepository) FindUserByUsername(username string) {
+func (userRepo UserRepository) FindUserByUsername(username string) {
 
 }
 
-func (user UserRepository) FindUserByEmail(email string) {}
+func (userRepo UserRepository) FindUserByEmail(email string) (*UserResponseModel, error) {
+	query := `SELECT user_id, email, first_name, last_name, username, is_email_verified, is_active FROM users WHERE email = $1`
 
-func (user UserRepository) UpdateUser() {}
+	var user UserResponseModel
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	err := userRepo.DB.QueryRowContext(ctx, query, email).Scan(
+		&user.UserId,
+		&user.Email,
+		&user.FirstName,
+		&user.LastName,
+		&user.Username,
+		&user.IsEmailVerified,
+		&user.IsActive,
+	)
 
-func (user UserRepository) UpdateUserById(userId int) {}
+	if err != nil {
+		userRepo.log.Error("Failed to get user by email", "error", err)
+		return nil, types.ErrUserNotFound
+	}
 
-func (user UserRepository) UpdateUserPasswordById(userId int) {}
+	return &user, nil
+}
 
-func (user UserRepository) DeleteUser() {}
+func (userRepo UserRepository) UpdateUser() {}
+
+func (userRepo UserRepository) UpdateUserById(userId int) {}
+
+func (userRepo UserRepository) UpdateUserPasswordById(userId int) {}
+
+func (userRepo UserRepository) DeleteUser() {}
 
 func (userRepo UserRepository) IsUserExists(email string, username string) (bool, error) {
 

@@ -7,6 +7,7 @@ import (
 	"fiber-auth-api/internal/repositories"
 	"fiber-auth-api/internal/types"
 	"fiber-auth-api/internal/validation"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -22,12 +23,16 @@ func NewUserHandler(app models.Application, dbModel *models.DbModel) *UserHandle
 
 var (
 	exampleEmail = "user@example.com"
-	requestExample = fiber.Map{
+	signupRequestExample = fiber.Map{
 		"email":    exampleEmail,
 		"password": exampleEmail,
 		"username": "johndoe",
 		"first_name": "John",
 		"last_name": "Doe",
+	}
+	signinRequestExample = fiber.Map{
+		"email":    exampleEmail,
+		"password": exampleEmail,
 	}
 )
 
@@ -37,7 +42,7 @@ type queryParams struct {
 
 func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 	
-	user := new(repositories.UserCreateModel)
+	user := new(repositories.UserSignupModel)
 	if err := validation.InvalidFieldValidation(c, map[string]bool{
 		"email":    true,
 		"password": true,
@@ -47,13 +52,13 @@ func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 	}, user); err != nil {
 		if invalidFieldErr, ok := validation.IsInvalidFieldError(err); ok {
 			userHandler.app.SlogLogger.Error("Invalid field error", "error", invalidFieldErr)
-			return userHandler.BadRequestFieldResponseError(c, requestExample, fiber.Map{
+			return userHandler.BadRequestFieldResponseError(c, signupRequestExample, fiber.Map{
 				"invalid_fields": invalidFieldErr.Fields,
 			})
 		}
 
 		userHandler.app.SlogLogger.Error("Invalid json body", "error", err)
-		return userHandler.BadRequestResponseError(c, requestExample)
+		return userHandler.BadRequestResponseError(c, signupRequestExample)
 	}
 
 	v := validation.NewErrorValidator()
@@ -64,7 +69,7 @@ func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 	v.Check(user.LastName != "", "last_name", "last name must be provided")
 	
 	if !v.IsValid() {
-		return userHandler.ValidationResponseError(c, requestExample, v.ValidationErrorField)
+		return userHandler.ValidationResponseError(c, signupRequestExample, v.ValidationErrorField)
 	}
 	
 	hashedPassword, err := helper.HashPassword(user.Password)
@@ -97,46 +102,59 @@ func (userHandler UserHandler) SignUpHandler(c fiber.Ctx) error {
 
 func (userHandler UserHandler) SignInHandler(c fiber.Ctx) error {
 
-	user := new(repositories.UserCreateModel)
+	user := new(repositories.UserSigninModel)
 
 	if err := validation.InvalidFieldValidation(c, map[string]bool{
 		"email":    true,
 		"password": true,
 	}, user); err != nil {
 		if invalidFieldErr, ok := validation.IsInvalidFieldError(err); ok {
-			return userHandler.BadRequestFieldResponseError(c, fiber.Map{
-				"email":    "user@example.com",
-				"password": "yourPassword123!",
-			}, fiber.Map{
+			return userHandler.BadRequestFieldResponseError(c, signinRequestExample, fiber.Map{
 				"invalid_fields": invalidFieldErr.Fields,
 			})
 		}
-
-		return userHandler.BadRequestResponseError(c, fiber.Map{
-			"email":    "user@example.com",
-				"password": "yourPassword123!",
-				"username": "johndoe",
-				"first_name": "John",
-				"last_name": "Doe",
-		})
-	}
-
-	if err := c.Bind().JSON(user); err != nil {
-		userHandler.app.SlogLogger.Error("Failed to bind request body", "error", err)
-		return userHandler.InternalServerErrorResponseError(c)
+		userHandler.app.SlogLogger.Error("Invalid json body", "error", err)
+		return userHandler.BadRequestResponseError(c, signinRequestExample)
 	}
 
 	v := validation.NewErrorValidator()
 	v.Check(user.Email != "", "email", "email must be provided")
+	v.Check(user.Password != "", "password", "password must be provided")
 
 	if !v.IsValid() {
-		return userHandler.ValidationResponseError(c, fiber.Map{
-			"email":    "user@example.com",
-			"password": "SecurePass123!",
-		}, v.ValidationErrorField)
+		return userHandler.ValidationResponseError(c, signinRequestExample, v.ValidationErrorField)
 	}
 
-	return c.SendString(user.Email)
+	userResponse, err := userHandler.dbModel.UserDbModel.AuthenticateUser(user.Email)
+
+	if err != nil {
+		if errors.Is(err, types.ErrUserNotFound) {
+			return userHandler.NotFoundResponseError(c)
+		}
+		return userHandler.InternalServerErrorResponseError(c)
+	}
+
+	if err := helper.VerifyPassword(userResponse.PasswordHash, user.Password); err != nil {
+		// "Invalid email or password"
+		return userHandler.UnauthorizedResponseError(c)
+	}
+
+	token, err := helper.CreateToken(userResponse.Email)
+
+	if err != nil {
+		userHandler.app.SlogLogger.Error("Failed to create token", "error", err)
+		return userHandler.InternalServerErrorResponseError(c)
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "jwt",
+		Value:    token,
+		Expires:  time.Now().Add(time.Hour * 24),
+		HTTPOnly: true,
+	})
+
+	return userHandler.SuccessResponse(c, "User created successfully", token)
+
 }
 
 func (userHandler UserHandler) SignOutHandler(c fiber.Ctx) error { return nil }
@@ -145,7 +163,21 @@ func (userHandler UserHandler) ResetPasswordHandler(c fiber.Ctx) error { return 
 
 func (userHandler UserHandler) GetAllUsersHandler(c fiber.Ctx) error {
 
-	
+	validator := validation.NewQueryValidator()
+    
+    // Define validation rules
+    rules := map[string]string{
+        "age":    "number",
+        "status": "string",
+        "search": "string",
+    }
+    
+    // Validate query parameters
+    if errors := validator.ValidateQuery(c, rules); len(errors) > 0 {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "errors": errors,
+        })
+    }
 
 	users, metadata, err := userHandler.dbModel.UserDbModel.GetAllUsers()
 	if err != nil {
@@ -177,38 +209,3 @@ func (userHandler UserHandler) GetUserByIdHandler(c fiber.Ctx) error {
 func (userHandler UserHandler) GetUserByUsernameHandler(c fiber.Ctx) error { return nil }
 
 func (userHandler UserHandler) GetUserByEmailHandler(c fiber.Ctx) error { return nil }
-
-func (userHandler UserHandler) ValidateSignUp(c fiber.Ctx, user *repositories.UserCreateModel) error {
-	if err := validation.InvalidFieldValidation(c, map[string]bool{
-		"email":    true,
-		"password": true,
-		"username": true,
-		"first_name": true,
-		"last_name": true,
-	}, user); err != nil {
-		if invalidFieldErr, ok := validation.IsInvalidFieldError(err); ok {
-			userHandler.app.SlogLogger.Error("Invalid field error", "error", invalidFieldErr)
-			return userHandler.BadRequestFieldResponseError(c, requestExample, fiber.Map{
-				"invalid_fields": invalidFieldErr.Fields,
-			})
-		}
-
-		userHandler.app.SlogLogger.Error("Invalid json body", "error", err)
-		return userHandler.BadRequestResponseError(c, requestExample)
-	}
-
-	v := validation.NewErrorValidator()
-	v.Check(user.Email != "", "email", "email must be provided")
-	v.Check(user.Password != "", "password", "password must be provided")
-	v.Check(user.Username != "", "username", "username must be provided")
-	v.Check(user.FirstName != "", "first_name", "first name must be provided")
-	v.Check(user.LastName != "", "last_name", "last name must be provided")
-	
-	if !v.IsValid() {
-		return userHandler.ValidationResponseError(c, requestExample, v.ValidationErrorField)
-	}
-
-	return nil
-	// limit, err := helper.GetQueryInt(q, "limit", 5)
-
-}

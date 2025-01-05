@@ -88,6 +88,7 @@ func (e *InvalidFieldError) Error() string {
 	return fmt.Sprintf("unknown field(s): %v", e.Fields)
 }
 
+// Query validation
 type QueryValidationError struct {
     Parameter string `json:"parameter"`
     Value     string `json:"value"`
@@ -111,6 +112,8 @@ func NewQueryValidator() *QueryValidator {
         matched, _ := regexp.MatchString(`^-?\d+(\.\d+)?$`, v)
         return matched
     }
+
+    
 
     qv.typeValidators["boolean"] = func(v string) bool {
         v = strings.ToLower(v)
@@ -190,3 +193,4 @@ func (qv *QueryValidator) validateParamValue(value, expectedType string) bool {
     }
     return validator(value)
 }
+
